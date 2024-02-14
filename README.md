@@ -1,1 +1,1 @@
-# analysis-of-MacMahon2019-replication-study
+This repository is part of a large replication project conducted by the Sports Science Replication Centre (https://ssreplicationcentre.com/). It includes the data and analyses for the replication study of "Beep Test Performance Is Influenced by 30 Minutes of Cognitive Work" by MacMahon et al (2019).
