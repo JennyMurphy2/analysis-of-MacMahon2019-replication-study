@@ -12,6 +12,8 @@ library(MOTE)
 
 data <- read_csv("replication_data.csv") 
 
+# Prep data -----------
+
 # Convert to long data set
 
 long_data <- data %>%
@@ -23,25 +25,42 @@ long_data <- data %>%
 
 long_data$condition <- as.factor(long_data$condition)
 
+
+# Convert minutes and seconds into seconds for the analysis
+
+
+sep_data <- long_data %>%
+  separate_wider_delim(beep_time, delim = ".", names = c("mins", "secs"),
+                       too_few = "align_start",
+                       too_many = "merge"
+  )
+
+sep_data$mins <- as.numeric(sep_data$mins)
+sep_data$secs <- as.numeric(sep_data$secs)
+
+seconds_data <- sep_data %>%
+  mutate(
+    across(secs, replace_na, 0)
+  ) %>%
+  mutate(beep_seconds = ((mins*60)+secs))
+
 # Descriptives ------------
 
-desc <- long_data %>% 
+desc <- seconds_data %>% 
   group_by(condition) %>%
   summarize(count = n (),
-            overall_mean = mean(beep_time,na.rm=TRUE),
-            overall_sd = sd(beep_time, na.rm = TRUE))
+            overall_mean = mean(beep_seconds,na.rm=TRUE),
+            overall_sd = sd(beep_seconds, na.rm = TRUE))
 desc
 
 # Repeated Measures ANOVA -----
 
 ##afex::aov_4(continuous_var ~ group_var + (RM_var|id_var)
 
-anova_results <- afex::aov_4(beep_time ~ (condition|id), 
-                                   data = long_data,
+anova_results <- afex::aov_4(beep_seconds ~ (condition|id), 
+                                   data = seconds_data,
                                    anova_table = list(es = "pes")) # partial eta squared
 anova_results
-
-summary(anova_results)
 
 ## Post hoc ------------
 
@@ -57,9 +76,9 @@ posthocresults
 
 ### Normality test 
 
-long_data %>% 
+seconds_data %>% 
   dplyr::group_by(condition) %>% 
-  rstatix::shapiro_test(beep_time) # shapiro-wilk test on individual groups
+  rstatix::shapiro_test(beep_seconds) # shapiro-wilk test on individual groups
 
 norm <- performance::check_normality(anova_results)
 plot(norm)
@@ -67,16 +86,16 @@ plot(norm, type = "qq")
 
 ### Outliers check
 
-long_data %>%
+seconds_data %>%
   group_by(condition) %>%
-  identify_outliers(beep_time)
+  identify_outliers(beep_seconds)
 
 ## Plots
 
 ## violin
 
-long_data %>% 
-  ggplot(aes(condition, beep_time)) +  
+seconds_data %>% 
+  ggplot(aes(condition, beep_seconds)) +  
   geom_violin(fill = "gray") +
   geom_boxplot(width = .07,
                fill = "white") +
@@ -90,8 +109,8 @@ long_data %>%
 
 ## Individual qq plots 
 
-long_data %>% 
-  ggplot(aes(sample = beep_time)) +    
+seconds_data %>% 
+  ggplot(aes(sample = beep_seconds)) +    
   geom_qq() +                               
   stat_qq_line() +                          
   facet_wrap(~ condition,                   # Panel by group
@@ -100,18 +119,12 @@ long_data %>%
 
 # Original values ------
 
-orig_values <- list(
-#  congruent_mean = 
-#    congruent_sd =
-#  noncongruent_mean =
-#    noncongruent_sd =
-    f_val = 21.76,
+orig_values <- data.frame(
+  f_val = 21.76,
   df1 = 1,
   df2 = 11,
   eta = 0.67
-) %>%
-  as.data.frame()
-
+) 
 
 # Replication test -----
 
